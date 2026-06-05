@@ -12,26 +12,30 @@ const useStyles = createStyles((theme) => ({
   container: {
     width: 300,
     height: 'fit-content',
-    backgroundColor: theme.colors.dark[6],
-    color: theme.colors.dark[0],
-    padding: 12,
-    borderRadius: theme.radius.sm,
+    backgroundColor: 'transparent',
+    color: '#e8e8f0',
+    padding: '10px 16px',
+    borderRadius: 6,
     fontFamily: 'Roboto',
-    boxShadow: theme.shadows.sm,
+    position: 'relative',
+    overflow: 'hidden',
   },
   title: {
-    fontWeight: 500,
+    fontWeight: 600,
     lineHeight: 'normal',
+    fontSize: 14,
+    color: '#f0f0f8',
+    letterSpacing: '0.01em',
   },
   description: {
-    fontSize: 12,
-    color: theme.colors.dark[2],
+    fontSize: 13,
+    color: 'rgba(200, 200, 220, 0.75)',
     fontFamily: 'Roboto',
     lineHeight: 'normal',
   },
   descriptionOnly: {
     fontSize: 14,
-    color: theme.colors.dark[2],
+    color: 'rgba(200, 200, 220, 0.75)',
     fontFamily: 'Roboto',
     lineHeight: 'normal',
   },
@@ -132,12 +136,25 @@ const Notifications: React.FC = () => {
           iconColor = 'yellow.6';
           break;
         default:
-          iconColor = 'blue.6';
+          iconColor = 'violet.6';
           break;
       }
     } else {
       iconColor = tinycolor(data.iconColor).toRgbString();
     }
+
+    // Resolve the actual CSS color string for borders/glows
+    const resolvedColor = tinycolor(iconColor.includes('.') ? (() => {
+      const [hue, shade] = iconColor.split('.');
+      const colorMap: Record<string, Record<string, string>> = {
+        red: { 6: '#fa5252' },
+        teal: { 6: '#12b886' },
+        yellow: { 6: '#fab005' },
+        blue: { 6: '#228be6' },
+        violet: { 6: '#7c3aed' },
+      };
+      return colorMap[hue]?.[shade] ?? '#7c3aed';
+    })() : iconColor).toRgbString();
 
     toast.custom(
       (t) => (
@@ -145,66 +162,54 @@ const Notifications: React.FC = () => {
           sx={{
             animation: getAnimation(t.visible, position),
             ...data.style,
+            backgroundColor: tinycolor(resolvedColor).setAlpha(0.13).toRgbString(),
+            border: 'none',
+            boxShadow: `0 4px 24px rgba(0,0,0,0.6)`,
           }}
           className={`${classes.container}`}
         >
-          <Group noWrap spacing={12}>
-            {data.icon && (
-              <>
-                {data.showDuration ? (
-                  <RingProgress
-                    key={toastKey}
-                    size={38}
-                    thickness={2}
-                    sections={[{ value: 100, color: iconColor }]}
-                    style={{ alignSelf: !data.alignIcon || data.alignIcon === 'center' ? 'center' : 'start' }}
-                    styles={{
-                      root: {
-                        '> svg > circle:nth-of-type(2)': {
-                          animation: `${durationCircle} linear forwards reverse`,
-                          animationDuration: `${duration}ms`,
-                        },
-                        margin: -3,
-                      },
-                    }}
-                    label={
-                      <Center>
-                        <ThemeIcon
-                          color={iconColor}
-                          radius="xl"
-                          size={32}
-                          variant={tinycolor(iconColor).getAlpha() < 0 ? undefined : 'light'}
-                        >
-                          <LibIcon icon={data.icon} fixedWidth color={iconColor} animation={data.iconAnimation} />
-                        </ThemeIcon>
-                      </Center>
-                    }
-                  />
-                ) : (
-                  <ThemeIcon
-                    color={iconColor}
-                    radius="xl"
-                    size={32}
-                    variant={tinycolor(iconColor).getAlpha() < 0 ? undefined : 'light'}
-                    style={{ alignSelf: !data.alignIcon || data.alignIcon === 'center' ? 'center' : 'start' }}
-                  >
-                    <LibIcon icon={data.icon} fixedWidth color={iconColor} animation={data.iconAnimation} />
-                  </ThemeIcon>
-                )}
-              </>
+          {/* Corner brackets */}
+          {(['topLeft', 'topRight', 'bottomLeft', 'bottomRight'] as const).map((corner) => {
+            const isTop = corner.includes('top');
+            const isLeft = corner.includes('Left');
+            const size = 12;
+            const thickness = 2;
+            return (
+              <Box
+                key={corner}
+                sx={{
+                  position: 'absolute',
+                  width: size,
+                  height: size,
+                  top: isTop ? 0 : undefined,
+                  bottom: isTop ? undefined : 0,
+                  left: isLeft ? 0 : undefined,
+                  right: isLeft ? undefined : 0,
+                  borderTop: isTop ? `${thickness}px solid ${tinycolor(resolvedColor).setAlpha(0.9).toRgbString()}` : 'none',
+                  borderBottom: !isTop ? `${thickness}px solid ${tinycolor(resolvedColor).setAlpha(0.9).toRgbString()}` : 'none',
+                  borderLeft: isLeft ? `${thickness}px solid ${tinycolor(resolvedColor).setAlpha(0.9).toRgbString()}` : 'none',
+                  borderRight: !isLeft ? `${thickness}px solid ${tinycolor(resolvedColor).setAlpha(0.9).toRgbString()}` : 'none',
+                  borderTopLeftRadius: corner === 'topLeft' ? 6 : 0,
+                  borderTopRightRadius: corner === 'topRight' ? 6 : 0,
+                  borderBottomLeftRadius: corner === 'bottomLeft' ? 6 : 0,
+                  borderBottomRightRadius: corner === 'bottomRight' ? 6 : 0,
+                  filter: `drop-shadow(0 0 4px ${tinycolor(resolvedColor).setAlpha(0.8).toRgbString()})`,
+                  pointerEvents: 'none',
+                }}
+              />
+            );
+          })}
+          <Stack spacing={2}>
+            {data.title && <Text className={classes.title}>{data.title}</Text>}
+            {data.description && (
+              <ReactMarkdown
+                components={MarkdownComponents}
+                className={`${!data.title ? classes.descriptionOnly : classes.description} description`}
+              >
+                {data.description}
+              </ReactMarkdown>
             )}
-            <Stack spacing={0}>
-              {data.title && <Text className={classes.title}>{data.title}</Text>}
-              {data.description && (
-                <ReactMarkdown
-                  components={MarkdownComponents}
-                  className={`${!data.title ? classes.descriptionOnly : classes.description} description`}
-                >
-                  {data.description}
-                </ReactMarkdown>
-              )}
-            </Stack>
-          </Group>
+          </Stack>
         </Box>
       ),
       {
